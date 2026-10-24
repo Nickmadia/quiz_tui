@@ -1,0 +1,731 @@
+{
+  "schema_version": 1,
+  "title": "IoT · 05 · LPWAN, application protocols and WSN routing",
+  "sources": [
+    "5_IoT-decrypted.pdf"
+  ],
+  "notes": [
+    "PDF page numbers are used. The bank covers LPWAN, LoRaWAN, Sigfox, publish/subscribe, MQTT, CoAP and every named routing family in the deck.",
+    "LPWAN operating limits and Sigfox message budgets are lecture scenarios, not current service-plan or regulatory guarantees. LoRa denotes the radio modulation/PHY; LoRaWAN adds MAC and network organization. Gateways need not translate every protocol layer in every deployment.",
+    "MQTT correction beyond the slides: its fixed header has one control byte plus a Remaining Length field of 1–4 bytes, not a universal fixed 24-bit header. Retained delivery stores the retained value per topic, not an unlimited history. QoS is scoped to a protocol delivery leg, not arbitrary exactly-once application side effects. Source: https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html sections 2.2, 3.3 and 4.3.",
+    "CoAP corrections beyond the slides: tokens correlate requests and responses, while Message IDs match ACK/RST and support duplicate detection. A separate response uses a new Message ID but retains the request token. An empty ACK is not the application response. RFC 7252 default MAX_RETRANSMIT is 4, not three. Source: https://www.rfc-editor.org/rfc/rfc7252.html sections 4.2, 4.4, 4.8 and 5.2–5.3.",
+    "Architecture comparisons depend on topology, traffic and polling interval; REST versus pub/sub alone does not determine hop count, latency, energy or packet loss. All rate/delay examples explicitly state idealizing assumptions.",
+    "PEGASIS parallel aggregation is the particular staged model shown on pages 132–135; logarithmic delay requires compatible simultaneous transmissions. Multihop and aggregation do not guarantee lower energy or latency under all conditions."
+  ],
+  "questions": [
+    {
+      "id": "05_iot-01",
+      "type": "open",
+      "topic": "IoT architecture",
+      "prompt": "Describe the device, channel, gateway and application roles in an IoT system. Why should gateway conversion be described per protocol layer rather than as one universal operation?",
+      "answer": "Sensors measure, controllers decide and actuators act; channels carry communication. A gateway connects access devices to the wider network and applications. It may bridge, route or proxy depending on the protocols, so conversion responsibilities depend on the actual stack.",
+      "explanation": "A gateway is an architectural role, not a guarantee that every packet is translated at every layer.",
+      "key_points": [
+        "Device and application roles",
+        "Gateway connects access and core",
+        "Conversion depends on actual layers/protocols"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 3–8"
+    },
+    {
+      "id": "05_iot-02",
+      "type": "open",
+      "topic": "WPAN and LPWAN",
+      "prompt": "A remote meter sends a few bytes hourly over several kilometers; a nearby network streams rich sensor data. Compare the suitability of LPWAN and WPAN and state the central trade-offs.",
+      "answer": "LPWAN suits infrequent small long-range reports with low average energy use; WPAN is suited to shorter-range communication with higher local capacity and optional relaying. Range, data volume, duty cycle and latency requirements drive the choice.",
+      "explanation": "Wide coverage does not make a technology suitable for high-rate or low-latency traffic.",
+      "key_points": [
+        "LPWAN long-range sparse reports",
+        "WPAN local communication",
+        "Rate/range/energy/latency trade-offs"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 4–10"
+    },
+    {
+      "id": "05_iot-03",
+      "type": "open",
+      "topic": "Application fit",
+      "prompt": "Why is a long-battery-life LPWAN sensor not automatically suitable for a control loop requiring 1 ms response and very high reliability?",
+      "answer": "LPWAN usually trades data rate and downlink availability for energy and range. Sleeping devices, slow serialization, contention and limited receive opportunities can prevent bounded millisecond responses.",
+      "explanation": "Average energy efficiency and dependable real-time behavior are different requirements.",
+      "key_points": [
+        "Low rate or sleep causes delay",
+        "Receive opportunities may be limited",
+        "No universal hard real-time guarantee"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 9–10"
+    },
+    {
+      "id": "05_iot-04",
+      "type": "open",
+      "topic": "LoRa and LoRaWAN",
+      "prompt": "Distinguish LoRa from LoRaWAN. Explain the basic end-device–gateway–server path and where IP can enter that path.",
+      "answer": "LoRa supplies chirp-spread-spectrum radio communication; LoRaWAN defines MAC behavior and network organization. End devices send to one or more gateways, which forward over an IP backhaul to a server that processes and deduplicates received traffic.",
+      "explanation": "The constrained access link need not carry an ordinary IP stack for gateways to use IP upstream.",
+      "key_points": [
+        "Radio versus MAC/network system",
+        "Device to gateways to server",
+        "IP backhaul and server deduplication"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 11–15"
+    },
+    {
+      "id": "05_iot-05",
+      "type": "open",
+      "topic": "LoRa trade-offs",
+      "prompt": "Why can reducing the effective radio data rate extend useful range while hurting capacity and latency? Explain the role of airtime rather than just bits per packet.",
+      "answer": "More robust low-rate settings can make weak signals decodable, but the same payload then occupies the channel longer. Greater airtime delays completion, spends active energy and leaves fewer opportunities for other traffic.",
+      "explanation": "Range improvement comes with shared-medium costs, rather than free extra coverage.",
+      "key_points": [
+        "Robust weak-signal reception",
+        "Longer serialization/airtime",
+        "Capacity, energy and delay costs"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 12–15"
+    },
+    {
+      "id": "05_iot-06",
+      "type": "open",
+      "topic": "Topology and redundancy",
+      "prompt": "Why does LoRaWAN avoid forwarding through neighboring battery sensors? How can reception by multiple gateways improve robustness without requiring every copy to reach the application?",
+      "answer": "Direct access avoids battery-powered relays carrying others' traffic. Multiple gateways may hear the same uplink, offering reception diversity. The network server removes redundant copies before normal application delivery.",
+      "explanation": "Redundancy at reception and duplicate application events are different issues.",
+      "key_points": [
+        "No battery sensor relay burden",
+        "Multiple gateway diversity",
+        "Server deduplicates copies"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 14–15"
+    },
+    {
+      "id": "05_iot-07",
+      "type": "open",
+      "topic": "LoRaWAN classes",
+      "prompt": "Compare Class A, B and C downlink opportunities. Which class best fits a rarely reporting battery meter and which best fits a powered actuator needing prompt commands?",
+      "answer": "A listens in two windows after its own uplink and minimizes energy use; B adds scheduled beacon-synchronized receive slots; C listens nearly continuously except while transmitting. A suits the meter; C suits the powered actuator.",
+      "explanation": "Class B provides an intermediate scheduling/energy trade-off.",
+      "key_points": [
+        "A post-uplink windows",
+        "B scheduled and C near-continuous listening",
+        "Correct application choices and energy trade-off"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 16–17"
+    },
+    {
+      "id": "05_iot-08",
+      "type": "open",
+      "topic": "LoRaWAN latency",
+      "prompt": "A command becomes ready just after a Class A device's receive windows close. Why is transmission time alone insufficient to predict delivery delay? Compare Class C.",
+      "answer": "Class A normally must wait for a later uplink and its receive opportunity before the downlink can be delivered. That availability wait may dominate serialization. Class C offers near-continuous reception, reducing that waiting component at higher energy cost.",
+      "explanation": "The deck's simple latency exercise must not be generalized without receive-window timing.",
+      "key_points": [
+        "Wait for next valid Class A opportunity",
+        "Availability wait can dominate",
+        "Class C lower waiting but higher energy"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 16–19"
+    },
+    {
+      "id": "05_iot-09",
+      "type": "open",
+      "topic": "Delay calculation",
+      "prompt": "For a 13-byte payload serialized at 1 kbit/s over a 10 km radio path, compute serialization and propagation time with c=3*10^8 m/s. Ignore headers. Which term dominates, and what omitted delay can still be larger?",
+      "answer": "Serialization is 104 ms; propagation is about 33.3 us. Serialization dominates these two terms, while receive-window scheduling or waiting for access can add substantially more.",
+      "explanation": "Distance-induced delay is not necessarily the main delay in a slow IoT link.",
+      "key_points": [
+        "104 ms",
+        "33.3 us",
+        "Scheduling/access can dominate even serialization"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 18–19"
+    },
+    {
+      "id": "05_iot-10",
+      "type": "open",
+      "topic": "Sigfox",
+      "prompt": "Compare the deck's Sigfox uplink mechanism with a conventional acknowledged transmission. Why send copies at different times and frequencies, and what does that fail to guarantee?",
+      "answer": "The lecture describes unacknowledged copies on different frequencies and times to gain diversity against fading, collisions and interference. The sender still lacks explicit delivery confirmation, and all copies may fail.",
+      "explanation": "Redundancy improves reception probability without becoming an acknowledgement protocol.",
+      "key_points": [
+        "Repeated copies with time/frequency diversity",
+        "No explicit ACK in described uplink",
+        "No absolute delivery guarantee"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 20–24"
+    },
+    {
+      "id": "05_iot-11",
+      "type": "open",
+      "topic": "Sigfox budget calculation",
+      "prompt": "Using only the lecture scenario of 140 uplinks/day with 12 payload bytes each, calculate the average useful uplink rate. Why is it different from the instantaneous radio bitrate?",
+      "answer": "The daily payload is 140*12*8=13440 bits; divided by 86400 s this is about 0.156 bit/s. It averages long idle periods and message-budget limits, while radio bitrate describes bits during an active transmission.",
+      "explanation": "This is a scenario calculation, not a claim about current service offerings.",
+      "key_points": [
+        "13440 bits/day",
+        "Approximately 0.156 bit/s",
+        "Average reporting rate differs from active PHY rate"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 22"
+    },
+    {
+      "id": "05_iot-12",
+      "type": "open",
+      "topic": "Sigfox architecture",
+      "prompt": "How do device ID, authentication/error-check fields, gateways and the backend contribute to the Sigfox path described in the slides? Why may the backend need duplicate removal?",
+      "answer": "Device IDs identify report origins; authentication and frame checks support authenticity and error detection. Gateways forward radio traffic to the IP backend, which stores/exposes data to applications. Multiple gateways or repeated transmissions can deliver copies requiring deduplication.",
+      "explanation": "Identification, integrity checks and forwarding are different responsibilities.",
+      "key_points": [
+        "ID identifies device",
+        "Checks support authenticity/error detection",
+        "Backend receives through gateways and removes copies"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 25–30"
+    },
+    {
+      "id": "05_iot-13",
+      "type": "open",
+      "topic": "Interaction models",
+      "prompt": "Compare polling request/response with publish/subscribe for a sensor that changes rarely. Explain topic subscription and one benefit and one risk of introducing a broker.",
+      "answer": "Polling repeatedly asks for current data; pub/sub delivers events when published to subscribed topics. A broker matches/distributes events, reducing needless polling, but can become a bottleneck or failure point.",
+      "explanation": "Publisher and consumer need not know one another's network identities to exchange topic-based data.",
+      "key_points": [
+        "Requests versus event-driven notification",
+        "Topic matching",
+        "Reduced polling plus broker dependency"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 31–35"
+    },
+    {
+      "id": "05_iot-14",
+      "type": "open",
+      "topic": "Broker architecture",
+      "prompt": "Explain the roles of publish, subscribe and unsubscribe, and why distributed brokers do not automatically remove every bottleneck.",
+      "answer": "Publishing submits an event; subscribing expresses interest; unsubscribing removes it. Multiple cooperating brokers can spread load and add redundancy, but their queues, links and coordination can still constrain throughput or availability.",
+      "explanation": "Changing a subscription changes event delivery, not the sensor's underlying measurements.",
+      "key_points": [
+        "Correct three operations",
+        "Load distribution and redundancy",
+        "Remaining queue/link/coordination limits"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 34–36"
+    },
+    {
+      "id": "05_iot-15",
+      "type": "open",
+      "topic": "Queue overload",
+      "prompt": "A broker receives 120 events/s but can forward only 100 events/s, with a queue initially empty and room for 1000 events. In a constant-rate lossless-in-service model, when does it fill? Name two possible remedies.",
+      "answer": "Backlog grows at 20 events/s, filling in 50 s. Reduce incoming traffic through filtering/aggregation or rate control, or increase service capacity through faster processing or distribution.",
+      "explanation": "A larger buffer alone postpones loss but does not correct a persistent arrival/service imbalance.",
+      "key_points": [
+        "Net accumulation 20/s",
+        "50 s",
+        "Address arrival/service imbalance"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 36"
+    },
+    {
+      "id": "05_iot-16",
+      "type": "open",
+      "topic": "Architecture comparison",
+      "prompt": "A slide compares REST and pub/sub latency using particular paths. Why is it unsafe to conclude that pub/sub is always slower? What determines event-to-application delay?",
+      "answer": "The result depends on link rates, hop count, broker processing/queues and polling interval. Pub/sub adds broker forwarding but can avoid waiting for the next poll; REST can have a short path yet long event-detection delay.",
+      "explanation": "An architectural label does not fix the timing of every deployment.",
+      "key_points": [
+        "Topology and link/processing delays",
+        "Polling delay can dominate REST",
+        "No unconditional latency ranking"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 37–42"
+    },
+    {
+      "id": "05_iot-17",
+      "type": "open",
+      "topic": "Store-and-forward delay",
+      "prompt": "A 200-byte report crosses three store-and-forward links at 100 kbit/s, 1 Gbit/s and 1 Gbit/s. Ignore all other delays and headers. Compare latency when all three links are 100 kbit/s.",
+      "answer": "Sum the serialization times: 1600/100000+2*1600/10^9=16.0032 ms. With three 100 kbit/s links, total latency is 48 ms.",
+      "explanation": "For one complete packet, each store-and-forward hop adds serialization even if pipeline throughput can be higher.",
+      "key_points": [
+        "Sum per-hop serialization",
+        "16.0032 ms",
+        "48 ms with three slow links"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 38–39"
+    },
+    {
+      "id": "05_iot-18",
+      "type": "open",
+      "topic": "Polling calculation",
+      "prompt": "An event waits 500 ms for polling. A 100-byte request and 200-byte response each cross three 100 kbit/s store-and-forward links. Ignoring other costs, calculate time from event to received response.",
+      "answer": "The request takes 3*800/100000=24 ms; response takes 3*1600/100000=48 ms. Including polling wait gives 500+24+48=572 ms.",
+      "explanation": "The event's waiting time is part of application freshness even before the first request is transmitted.",
+      "key_points": [
+        "24 ms request",
+        "48 ms response",
+        "572 ms total including polling"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 40–42"
+    },
+    {
+      "id": "05_iot-19",
+      "type": "open",
+      "topic": "MQTT session",
+      "prompt": "Describe MQTT's relationship to TCP and the broker. What do CONNECT/CONNACK and PINGREQ/PINGRESP add beyond a TCP connection?",
+      "answer": "MQTT is an application pub/sub protocol carried over TCP. CONNECT/CONNACK establishes MQTT-level session acceptance; keepalive ping exchanges detect an idle connection that is no longer usable. TCP byte delivery alone does not describe MQTT session state.",
+      "explanation": "Transport reliability and application-protocol session behavior operate at different layers.",
+      "key_points": [
+        "MQTT over TCP through broker",
+        "MQTT-level connection acceptance",
+        "Keepalive liveness"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 43–45, 49–50"
+    },
+    {
+      "id": "05_iot-20",
+      "type": "open",
+      "topic": "MQTT QoS",
+      "prompt": "Compare QoS 0, 1 and 2 in terms of loss, duplicates and protocol cost. For QoS 2, what must you avoid claiming about arbitrary application side effects?",
+      "answer": "QoS 0 offers at-most-once delivery; QoS 1 can redeliver; QoS 2 suppresses duplicates for its MQTT delivery exchange with extra state/messages. It does not by itself guarantee exactly-once effects across arbitrary application code or independent delivery legs.",
+      "explanation": "Reliability semantics must be interpreted at the layer and scope where they are defined.",
+      "key_points": [
+        "0 at most once and 1 at least once",
+        "2 duplicate suppression with overhead",
+        "No arbitrary end-to-end side-effect guarantee"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 44, 51–56"
+    },
+    {
+      "id": "05_iot-21",
+      "type": "open",
+      "topic": "MQTT handshakes",
+      "prompt": "Write the MQTT message sequence for QoS 1 and QoS 2. Why is tracking exchange state and packet identifiers necessary when replies may be lost?",
+      "answer": "QoS 1 uses PUBLISH–PUBACK. QoS 2 uses PUBLISH–PUBREC–PUBREL–PUBCOMP. Identifiers and retained exchange state let peers associate retries/replies with an existing delivery rather than processing every arrival as a new publication.",
+      "explanation": "More messages alone do not provide duplicate suppression without state.",
+      "key_points": [
+        "Correct QoS 1 sequence",
+        "Correct QoS 2 sequence",
+        "Track retries and completion with identifiers/state"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 51, 53–56"
+    },
+    {
+      "id": "05_iot-22",
+      "type": "open",
+      "topic": "MQTT format",
+      "prompt": "Name the parts of an MQTT control packet. Correct the claim that every fixed header is exactly 24 bits, and explain the purpose of RETAIN on a PUBLISH.",
+      "answer": "Packets have a fixed header and, depending on type, a variable header and payload. The fixed header has a control byte plus 1–4 Remaining Length bytes. RETAIN stores a topic's retained value for later subscribers.",
+      "explanation": "Standards clarification: https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html sections 2.2 and 3.3.1.3. Retained values are not a full event history.",
+      "key_points": [
+        "Packet parts",
+        "Variable-length Remaining Length",
+        "Retained value for future subscribers"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 47–48"
+    },
+    {
+      "id": "05_iot-23",
+      "type": "open",
+      "topic": "MQTT-SN",
+      "prompt": "Why might a constrained sensor network use MQTT-SN and a gateway instead of requiring every sensor to open a normal MQTT/TCP connection?",
+      "answer": "MQTT-SN adapts pub/sub communication for sensor-network constraints and can use transports such as UDP without a TCP connection from every sensor. A gateway translates the sensor-side exchanges into MQTT communication with a broker.",
+      "explanation": "The gateway preserves the pub/sub interaction while adapting its transport and message representation.",
+      "key_points": [
+        "Avoid per-sensor normal TCP requirement",
+        "Constrained-network adaptation",
+        "Gateway connects sensor protocol to MQTT broker"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 45–46"
+    },
+    {
+      "id": "05_iot-24",
+      "type": "open",
+      "topic": "QoS throughput model",
+      "prompt": "At 250 kbit/s, suppose each MQTT control packet is artificially 200 bytes and a sender completes one exchange before starting the next. Ignoring all other delay, calculate message rates for 1-, 2- and 4-packet exchanges. Why are these only model estimates?",
+      "answer": "One packet takes 6.4 ms. Rates are 156.25, 78.125 and 39.0625 completed exchanges/s. Actual control sizes differ and transport headers, fragmentation, RTT, queues and pipelining change the result.",
+      "explanation": "The exercise isolates handshake serialization, not real MQTT-over-802.15.4 performance.",
+      "key_points": [
+        "6.4 ms per assumed packet",
+        "156.25, 78.125, 39.0625 exchanges/s",
+        "Artificial sizes and omitted timing effects"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 57–58"
+    },
+    {
+      "id": "05_iot-25",
+      "type": "open",
+      "topic": "MQTT request/response",
+      "prompt": "How can MQTT support request/response while remaining a publish/subscribe protocol? Explain the roles of a server topic and response topic.",
+      "answer": "A requester subscribes for responses and publishes a request to the server's topic, including a response-topic indication. The server receives via subscription and publishes its reply to that topic through the broker.",
+      "explanation": "Application-level request/response is implemented using two topic-routed publication directions.",
+      "key_points": [
+        "Server subscribes to requests",
+        "Requester supplies/listens on response topic",
+        "Both messages still travel via broker"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 59–60"
+    },
+    {
+      "id": "05_iot-26",
+      "type": "open",
+      "topic": "CoAP architecture",
+      "prompt": "Why was base CoAP designed over UDP with compact binary messages? How can an HTTP/CoAP proxy connect a web application to a constrained sensor?",
+      "answer": "UDP and compact encoding reduce connection/message overhead for constrained devices. A proxy maps resources, methods and responses between HTTP and CoAP, such as HTTP GET to CoAP GET and a successful readout back to HTTP.",
+      "explanation": "UDP itself does not provide reliable delivery; the CoAP message layer can add acknowledgements and retries.",
+      "key_points": [
+        "Low overhead for constrained devices",
+        "Map resource/method/response semantics",
+        "CoAP can supply reliability above UDP"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 61–65"
+    },
+    {
+      "id": "05_iot-27",
+      "type": "open",
+      "topic": "CoAP message types",
+      "prompt": "Distinguish CON, NON, ACK and RST in base CoAP. Is an empty ACK evidence that the requested application result is already available?",
+      "answer": "CON requests message acknowledgement; NON omits that exchange; ACK confirms a CON; RST rejects a message lacking suitable context. An empty ACK confirms receipt but contains no application result.",
+      "explanation": "Message delivery and application response are separate concerns.",
+      "key_points": [
+        "CON versus NON",
+        "ACK confirmation versus RST rejection",
+        "Empty ACK does not provide application result"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 65–68"
+    },
+    {
+      "id": "05_iot-28",
+      "type": "open",
+      "topic": "CoAP identifiers",
+      "prompt": "What different jobs do Message ID and Token perform in CoAP? Why must they not both be described as a session identifier?",
+      "answer": "Message ID supports duplicate detection and ACK/RST matching. Token correlates a response with its request. They operate at different layers of the exchange, rather than representing one shared session identifier.",
+      "explanation": "Correction to the slides; RFC 7252 sections 4.4 and 5.3: https://www.rfc-editor.org/rfc/rfc7252.html",
+      "key_points": [
+        "Message ID for ACK/RST and duplicates",
+        "Token for response correlation",
+        "Different purposes, not one session ID"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 66–74, 77"
+    },
+    {
+      "id": "05_iot-29",
+      "type": "open",
+      "topic": "CoAP separate response",
+      "prompt": "A CON GET has Message ID m and Token t. Compare an immediate piggybacked response with a delayed separate CON response. Which identifiers are reused?",
+      "answer": "An immediate response can be carried in ACK m with Token t. For delayed processing the server sends empty ACK m, then CON with a fresh Message ID n and Token t; the client replies with ACK n.",
+      "explanation": "Correction to page 73: the separate response gets its own Message ID. RFC 7252 section 5.2: https://www.rfc-editor.org/rfc/rfc7252.html",
+      "key_points": [
+        "Piggyback response in request ACK",
+        "Delayed response keeps token but uses fresh ID",
+        "Client acknowledges separate CON by its ID"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 69–73"
+    },
+    {
+      "id": "05_iot-30",
+      "type": "open",
+      "topic": "CoAP retransmission",
+      "prompt": "How does a confirmable CoAP message recover from a missing ACK, and why increase timeouts between retries? Should its retry count be inferred from the slide example as a universal protocol rule?",
+      "answer": "The sender retransmits subject to a bounded retry policy, increasing timeout to avoid persistent aggressive traffic during loss or congestion. The slide's number is not universal; RFC 7252 defaults to four retransmissions.",
+      "explanation": "RFC 7252 sections 4.2 and 4.8 correct the slide example: https://www.rfc-editor.org/rfc/rfc7252.html",
+      "key_points": [
+        "Bounded retransmission of CON",
+        "Increasing wait reduces repeated congestion",
+        "Default four retransmissions, not universal slide count"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 67–68"
+    },
+    {
+      "id": "05_iot-31",
+      "type": "open",
+      "topic": "Choosing CoAP reliability",
+      "prompt": "Choose CON or NON for (a) a replaceable temperature sample sent each second and (b) an important command. Explain why an ACK alone is insufficient to prove the intended physical action occurred.",
+      "answer": "NON can suit replaceable samples when occasional loss is acceptable; CON is preferable for acknowledged delivery of important commands. Even then an ACK concerns message reception; application status or a response is needed to establish command processing and physical outcome.",
+      "explanation": "Transporting a command and verifying an actuator's real-world state are separate steps.",
+      "key_points": [
+        "NON when occasional sample loss acceptable",
+        "CON for important acknowledged delivery",
+        "Physical completion needs application evidence"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 68–74"
+    },
+    {
+      "id": "05_iot-32",
+      "type": "open",
+      "topic": "CoAP format",
+      "prompt": "Describe the fixed CoAP header's purpose and the roles of Token, Options and Payload. Interpret the distinction between a success response and a client-error response.",
+      "answer": "The base header carries version, message type, token length, code and Message ID. Token correlates responses; Options carry metadata such as resource selection; Payload carries content. Class 2 indicates success and class 4 indicates a client error.",
+      "explanation": "Binary encoding keeps common fields compact while options extend message meaning.",
+      "key_points": [
+        "Core fixed-header information",
+        "Token/options/payload roles",
+        "Success class 2 versus client-error class 4"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 71, 75–77"
+    },
+    {
+      "id": "05_iot-33",
+      "type": "open",
+      "topic": "Encapsulation delay",
+      "prompt": "For one slow sensor link at 250 kbit/s, a GET has 20 CoAP bytes and its response has 10. Each adds 8 UDP, 10 adaptation and 10 MAC bytes. Ignore other delays and fast-link serialization. Calculate round-trip serialization.",
+      "answer": "Request size is 48 bytes and response size 38 bytes. Total is 86*8/250000=0.002752 s, or 2.752 ms. A precise end-to-end result would also include the other links and any processing, waiting or retransmission.",
+      "explanation": "Headers must be counted on each direction at the layer where they are transmitted.",
+      "key_points": [
+        "48-byte request and 38-byte response",
+        "2.752 ms",
+        "Only stated slow-link serialization counted"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 78–80"
+    },
+    {
+      "id": "05_iot-34",
+      "type": "open",
+      "topic": "Routing organization",
+      "prompt": "Distinguish flat/hierarchical organization from address/data/location-based routing. Why are these classifications not mutually exclusive alternatives?",
+      "answer": "Flat versus hierarchical describes whether nodes have similar roles or form clusters with heads. Address-, data- and location-based schemes describe what identifies the desired destination/information. A hierarchy can forward by location or requested data.",
+      "explanation": "Topology/roles and forwarding criteria describe different dimensions of a routing design.",
+      "key_points": [
+        "Role organization dimension",
+        "Destination/information selection dimension",
+        "Can combine classifications"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 81–90"
+    },
+    {
+      "id": "05_iot-35",
+      "type": "open",
+      "topic": "Aggregation",
+      "prompt": "Explain how traffic aggregation can save transmissions yet create an energy bottleneck at a cluster head. Name one mitigation and one latency cost.",
+      "answer": "Combining readings removes redundancy or reduces packet counts, but the head must receive, process and forward others' traffic. Rotate heads or distribute the load; buffering and processing before forwarding can add latency.",
+      "explanation": "Network-wide savings do not imply equal energy savings at every device.",
+      "key_points": [
+        "Fewer redundant transmissions",
+        "Head bears extra receive/process/forward work",
+        "Rotation/distribution and buffering delay"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 83–90"
+    },
+    {
+      "id": "05_iot-36",
+      "type": "open",
+      "topic": "Routing strategy",
+      "prompt": "Compare proactive, reactive and hybrid routing for a mostly idle sensor network and for frequent latency-sensitive traffic.",
+      "answer": "Proactive routing maintains paths with recurring control traffic, reducing discovery wait for frequent traffic. Reactive routing discovers on demand, saving quiet-period overhead but adding initial delay. Hybrid approaches maintain some routes proactively and discover others as needed.",
+      "explanation": "Energy and reaction-time trade-offs depend on traffic and topology changes.",
+      "key_points": [
+        "Proactive ready paths with overhead",
+        "Reactive low idle overhead with discovery delay",
+        "Hybrid combines scopes"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 92–93"
+    },
+    {
+      "id": "05_iot-37",
+      "type": "open",
+      "topic": "Flooding",
+      "prompt": "Why can flooding deliver quickly along a short path while still being inefficient? Explain TTL and distinguish traffic implosion from overlapping sensor information.",
+      "answer": "Parallel copies can reach the destination via a short path, but consume energy and airtime. TTL bounds forwarding lifetime. Implosion duplicates the same datagram through different paths; overlap is redundant information generated by different sources.",
+      "explanation": "Bounding hop count limits persistence but does not remove all duplicate or redundant traffic.",
+      "key_points": [
+        "Parallel paths versus duplicate cost",
+        "TTL bounds propagation",
+        "Same packet duplicates versus overlapping content"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 94–98"
+    },
+    {
+      "id": "05_iot-38",
+      "type": "open",
+      "topic": "Gossiping",
+      "prompt": "Compare forwarding one datagram by flooding with forwarding it by gossiping to one randomly chosen neighbor. Why can gossiping use fewer transmissions locally but take longer end to end?",
+      "answer": "Flooding sends copies toward many neighbors; gossiping chooses one. Each gossip step costs fewer transmissions but may follow detours or revisit nodes, increasing path length and delivery time.",
+      "explanation": "A locally cheap forwarding choice is not necessarily a shortest end-to-end route.",
+      "key_points": [
+        "Many neighbors versus one random neighbor",
+        "Lower local fanout",
+        "Random detours increase latency"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 99–101"
+    },
+    {
+      "id": "05_iot-39",
+      "type": "open",
+      "topic": "Routing delay calculation",
+      "prompt": "In a five-node ring with equal destination probability over the other four nodes, flooding reaches two nodes in one hop and two in two hops. Frames are 200 bytes at 250 kbit/s. Ignoring collisions and other delays, find mean first-arrival latency.",
+      "answer": "One-hop serialization is 1600/250000=6.4 ms. Mean distance is (1+1+2+2)/4=1.5 hops, so mean first-arrival latency is 9.6 ms.",
+      "explanation": "The calculation uses shortest first arrivals under ideal parallel flooding, not the total airtime spent on all copies.",
+      "key_points": [
+        "6.4 ms per hop",
+        "Mean 1.5 hops",
+        "9.6 ms first-arrival average"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 98, 101"
+    },
+    {
+      "id": "05_iot-40",
+      "type": "open",
+      "topic": "SPIN negotiation",
+      "prompt": "Trace ADV–REQ–DATA in SPIN and explain how metadata helps reduce redundant data transmissions.",
+      "answer": "A node advertises descriptive metadata with ADV. An interested neighbor sends REQ; the advertiser then sends DATA. Neighbors can request only information they need instead of receiving every full datagram blindly.",
+      "explanation": "Metadata is useful when its negotiation cost is smaller than the unnecessary data transfers avoided.",
+      "key_points": [
+        "ADV describes available data",
+        "REQ expresses interest",
+        "DATA follows request and avoids blind data flooding"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 102–106"
+    },
+    {
+      "id": "05_iot-41",
+      "type": "open",
+      "topic": "SPIN energy",
+      "prompt": "Why should a SPIN node estimate the energy needed for the whole negotiation before advertising or requesting data? What connectivity trade-off follows from withdrawing when low on energy?",
+      "answer": "Advertising commits to receiving a request and sending data; requesting commits to receiving data. Checking those costs prevents starting exchanges the node cannot afford, but a withdrawing intermediary may block dissemination through that route.",
+      "explanation": "Preserving one node's energy can reduce reachability for others.",
+      "key_points": [
+        "Account for complete exchange costs",
+        "Avoid unaffordable work",
+        "Withdrawal can interrupt a route"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 103, 107"
+    },
+    {
+      "id": "05_iot-42",
+      "type": "open",
+      "topic": "SPIN broadcast",
+      "prompt": "How does SPIN-BC exploit a shared broadcast channel to suppress duplicate requests? Why might a lower-energy node wait longer before requesting?",
+      "answer": "Interested nodes delay REQ and listen for another node's request. One request can trigger a broadcast DATA received by all interested neighbors, letting others suppress their own REQs. A lower-energy node can defer and benefit from a better-powered requester.",
+      "explanation": "Broadcast overhearing is used as a useful shared result rather than repeated point-to-point work.",
+      "key_points": [
+        "Delayed requests and overhearing",
+        "One DATA broadcast serves multiple listeners",
+        "Lower-energy node conserves request effort"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 108–109"
+    },
+    {
+      "id": "05_iot-43",
+      "type": "open",
+      "topic": "SPIN reliability",
+      "prompt": "What do retransmitted requests/data recovery and periodic advertisements add in SPIN-RL? Why does this not guarantee delivery through an uninterested or unavailable forwarding bottleneck?",
+      "answer": "They offer recovery opportunities when a requested DATA message is lost or an advertisement was missed. However, data still needs a viable chain of participating nodes; loss recovery cannot create interest or physical connectivity at a bottleneck.",
+      "explanation": "Protocol reliability features are conditional on an available forwarding path.",
+      "key_points": [
+        "Recover missing DATA",
+        "Periodic advertisements provide more opportunities",
+        "Participation/connectivity remains necessary"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 110"
+    },
+    {
+      "id": "05_iot-44",
+      "type": "open",
+      "topic": "Directed Diffusion",
+      "prompt": "Trace an interest from a sink to sensors in Directed Diffusion. What is a gradient, which way does it point, and how is returning data forwarded?",
+      "answer": "The sink disseminates an attribute-based interest. Each receiver records interest state and gradients toward neighbors from which interest arrived, including requested rate/lifetime. Matching sensor data follows those gradients back toward interested receivers.",
+      "explanation": "Interest propagation establishes reverse-direction information for subsequent data delivery.",
+      "key_points": [
+        "Disseminate descriptive interest",
+        "Record neighbor-direction/rate state",
+        "Matching data follows gradients toward sink"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 111–116"
+    },
+    {
+      "id": "05_iot-45",
+      "type": "open",
+      "topic": "Reinforcement",
+      "prompt": "Directed Diffusion has several gradients for the same interest. What does reinforcement accomplish, and why do timestamps and expiry matter?",
+      "answer": "Reinforcement favors a useful path, for example by requesting a higher data rate along a lower-latency route. Timestamps and lifetimes age out obsolete interest/gradient state so forwarding adapts instead of persisting forever.",
+      "explanation": "Multipath discovery and selective sustained delivery can serve different stages of communication.",
+      "key_points": [
+        "Favor useful path/rate",
+        "Adapt to latency or loss",
+        "Expire stale state"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 113, 117–118"
+    },
+    {
+      "id": "05_iot-46",
+      "type": "open",
+      "topic": "Routing comparison",
+      "prompt": "Compare SPIN's data-driven negotiation with Directed Diffusion's interest-driven delivery. Who initiates dissemination, and how is unnecessary data forwarding reduced?",
+      "answer": "SPIN begins with a producer advertising available data, followed by requests. Directed Diffusion begins with a sink disseminating interests that establish gradients. Both avoid blindly forwarding all data by matching offered information to demand.",
+      "explanation": "The two are data-centric but differ in how demand is learned and forwarding state is established.",
+      "key_points": [
+        "SPIN producer advertisement",
+        "Diffusion sink interest",
+        "Match information with demand"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 102–118"
+    },
+    {
+      "id": "05_iot-47",
+      "type": "open",
+      "topic": "LEACH rounds",
+      "prompt": "Describe LEACH's setup and steady-state phases. How do cluster-head rotation, aggregation and TDMA each contribute to energy efficiency?",
+      "answer": "Setup elects heads, forms clusters and distributes schedules. Steady state collects data in TDMA slots and aggregates it at heads for the sink. Rotation spreads head workload; aggregation reduces redundancy; scheduled access limits intra-cluster contention and unnecessary listening.",
+      "explanation": "The selected heads incur extra work, so a permanent choice can exhaust a few critical nodes.",
+      "key_points": [
+        "Setup then scheduled data phase",
+        "Rotation spreads head cost",
+        "Aggregation and TDMA reduce communication waste"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 119–125"
+    },
+    {
+      "id": "05_iot-48",
+      "type": "open",
+      "topic": "LEACH election",
+      "prompt": "For eligible nodes, T=P/(1-P*(r mod (1/P))); ineligible nodes have T=0. With P=0.2, calculate T at r=0 and r=4 within an epoch. What is the purpose of eligibility G?",
+      "answer": "At r=0, T=0.2; at r=4, T=0.2/(1-0.8)=1. G excludes nodes already selected in the current five-round epoch, preventing repeated head selection while giving remaining eligible nodes a rising chance.",
+      "explanation": "The threshold applies only to eligible nodes; a high threshold does not override exclusion.",
+      "key_points": [
+        "0.2 then 1",
+        "Five-round epoch",
+        "Eligibility prevents repeat selection within epoch"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 123–124"
+    },
+    {
+      "id": "05_iot-49",
+      "type": "open",
+      "topic": "XLEACH",
+      "prompt": "In a five-node LEACH epoch, four nodes have already been cluster heads and the remaining node has 4% battery. Why may baseline LEACH still select it, and what does XLEACH try to improve?",
+      "answer": "Baseline eligibility/threshold selection does not account for remaining energy, so the only eligible node can become head. XLEACH adjusts selection using energy and time since selection to reduce assigning demanding head work to weak batteries.",
+      "explanation": "Equal historical role rotation is not the same as equal remaining energy capacity.",
+      "key_points": [
+        "Eligibility can favor depleted node",
+        "Baseline ignores residual energy",
+        "Energy-aware threshold aims to improve assignment"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 126–128"
+    },
+    {
+      "id": "05_iot-50",
+      "type": "open",
+      "topic": "PEGASIS versus LEACH",
+      "prompt": "Compare LEACH's clusters with PEGASIS's chain and rotating leader. Why can nearest-neighbor exchanges reduce transmission energy, and what topology dependency do they introduce?",
+      "answer": "LEACH collects within multiple clusters; PEGASIS builds a chain of neighboring nodes and rotates the node forwarding aggregated data to the sink. Short neighbor links can reduce transmit power, but chain construction and breaks affect routes and collection delay.",
+      "explanation": "Saving power per link does not remove coordination or topology-management costs.",
+      "key_points": [
+        "Clusters versus chain",
+        "Rotating sink-facing leader",
+        "Short links save power but create chain dependencies"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 119–131"
+    },
+    {
+      "id": "05_iot-51",
+      "type": "open",
+      "topic": "PEGASIS aggregation",
+      "prompt": "The deck's parallel aggregation example halves the active participant set each stage. For eight nodes, how many collection stages are needed? Compare an interference-constrained sequential chain and state the assumption behind the difference.",
+      "answer": "The parallel staged model needs log2(8)=3 collection stages; sequential collection can require 8-1=7. The shorter schedule assumes the paired transmissions can occur simultaneously without destructive interference and with the required links available.",
+      "explanation": "These are collection stages, excluding the final leader-to-sink transmission.",
+      "key_points": [
+        "Three parallel stages",
+        "Seven sequential stages",
+        "Parallelism/link feasibility assumption and final hop excluded"
+      ],
+      "source": "5_IoT-decrypted.pdf, PDF pages 132–135"
+    }
+  ]
+}

@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "title": "IoT · 03 · Wireless LANs",
+  "sources": [
+    "3_WLAN-decrypted.pdf"
+  ],
+  "notes": [
+    "PDF page numbers are used throughout. Version questions test technical mechanisms rather than potentially misleading headline maximum-rate tables.",
+    "Clarifications beyond the slides: an ordinary AP bridges at layer 2; it is not merely a physical-layer device. RTS, CTS and ACK are MAC control frames, not ARP payloads. Address 4 is used for four-address distribution-system forwarding, not ordinary ad-hoc traffic.",
+    "Timing questions use SIFS<PIFS<DIFS, not the slides' oversimplified claim that their durations are simply propagation-time multiples. RTS/CTS is optional, and stations hearing a relevant RTS reservation must not simply ignore it because they missed CTS.",
+    "802.11 version comparisons are scoped to the generations discussed in the deck, not a claim about the latest available standards. BSS/ESS architecture does not imply that every BSS must contain an AP."
+  ],
+  "questions": [
+    {
+      "id": "03_wlan-01",
+      "type": "open",
+      "topic": "Architecture",
+      "prompt": "Distinguish wireless from mobile, and infrastructure from ad-hoc operation. Give one example showing why the distinctions are independent.",
+      "answer": "Wireless describes a radio link; mobile describes movement. Infrastructure uses an AP or base station; ad-hoc nodes communicate without one. A fixed Wi-Fi sensor is wireless but stationary, and an ad-hoc network need not have moving nodes.",
+      "explanation": "Radio medium, movement and network organization are separate properties.",
+      "key_points": [
+        "Wireless need not mean mobile",
+        "AP versus no AP",
+        "Valid independent example"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 3–9"
+    },
+    {
+      "id": "03_wlan-02",
+      "type": "open",
+      "topic": "Wireless taxonomy",
+      "prompt": "Compare single-hop infrastructure, multi-hop infrastructure and multi-hop ad-hoc networks. What changes about the path to the Internet?",
+      "answer": "Single-hop infrastructure reaches an AP directly. Multi-hop infrastructure uses wireless relays to reach infrastructure. Multi-hop ad-hoc nodes relay among themselves without requiring an AP or Internet gateway.",
+      "explanation": "The presence of multiple wireless hops does not by itself determine whether infrastructure exists.",
+      "key_points": [
+        "Direct AP link",
+        "Relays toward infrastructure",
+        "Ad-hoc forwarding without required infrastructure"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 8–9"
+    },
+    {
+      "id": "03_wlan-03",
+      "type": "open",
+      "topic": "Radio channel",
+      "prompt": "Explain path loss, interference and multipath, and give one reason an apparently nearby wireless receiver may still have a poor link.",
+      "answer": "Path loss reduces signal strength with propagation. Interference adds competing signals; multipath produces delayed copies via reflections. Obstacles, interferers or destructive multipath can make a nearby link unreliable.",
+      "explanation": "Distance alone does not characterize a wireless channel.",
+      "key_points": [
+        "Attenuation with propagation",
+        "Competing transmissions",
+        "Delayed reflected copies and a valid consequence"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 10–12"
+    },
+    {
+      "id": "03_wlan-04",
+      "type": "open",
+      "topic": "Rate adaptation",
+      "prompt": "With a fixed received SNR, why might choosing the highest-rate modulation increase packet loss? Explain how a rate-adaptation policy should use SNR and a BER requirement.",
+      "answer": "Higher-order modulation packs more bits per symbol but can require higher SNR to distinguish symbols reliably. Choose the highest rate whose BER meets the requirement and lower it when channel quality falls.",
+      "explanation": "Raw data rate can rise while useful delivered throughput falls through retransmissions.",
+      "key_points": [
+        "Rate versus error trade-off",
+        "Meet BER at available SNR",
+        "Adapt to changing channel quality"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 11"
+    },
+    {
+      "id": "03_wlan-05",
+      "type": "open",
+      "topic": "Hidden terminals",
+      "prompt": "Why can two senders that both reach an AP fail to sense each other? How does RTS/CTS help, and why does it not guarantee zero collisions?",
+      "answer": "Obstacles or attenuation can hide the senders from each other. The AP's CTS announces a reservation to nearby interferers. RTS frames can still collide and control frames can be lost, so protection only reduces risk.",
+      "explanation": "Sensing at a sender is not the same as interference conditions at the receiver.",
+      "key_points": [
+        "Different hearing relationships",
+        "Receiver CTS informs hidden sender",
+        "Control collisions or losses remain possible"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 12, 22–26"
+    },
+    {
+      "id": "03_wlan-06",
+      "type": "open",
+      "topic": "BSS and ESS",
+      "prompt": "Describe a BSS, an ESS and the distribution system. How does the AP connect the wireless segment to other devices?",
+      "answer": "A BSS is a basic service group; an infrastructure BSS includes an AP and associated stations. An ESS links BSSs through a distribution system. The AP bridges wireless frames to that system, commonly a wired LAN.",
+      "explanation": "Clarification: bridging is a data-link function, rather than just physical signal repetition.",
+      "key_points": [
+        "Infrastructure BSS components",
+        "ESS joins BSSs via DS",
+        "AP acts as a bridge"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 15–17"
+    },
+    {
+      "id": "03_wlan-07",
+      "type": "open",
+      "topic": "Frame errors",
+      "prompt": "Assume independent bit errors with probability p. Derive the probability that an L-bit frame has at least one error. Why does this motivate fragmentation?",
+      "answer": "All bits are correct with probability (1-p)^L, so frame error probability is 1-(1-p)^L. Larger L raises the risk of a failed frame; smaller fragments limit the amount retransmitted after an error.",
+      "explanation": "Fragmentation improves error recovery at the cost of additional per-fragment overhead.",
+      "key_points": [
+        "1-(1-p)^L",
+        "L measured in bits",
+        "Reduced retransmission waste versus overhead"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 18–19"
+    },
+    {
+      "id": "03_wlan-08",
+      "type": "open",
+      "topic": "Frame error calculation",
+      "prompt": "For p=10^-5 and L=1500 bytes, estimate the frame error probability using independent errors. Explain why reporting p as the packet loss probability would be misleading.",
+      "answer": "L=12000 bits, so P_error=1-(1-10^-5)^12000, approximately 0.113 or 11.3%. A frame fails if any bit is wrong, so its error probability can greatly exceed the individual bit error probability.",
+      "explanation": "A small per-bit probability accumulates over a long frame.",
+      "key_points": [
+        "Convert bytes to 12000 bits",
+        "Approximately 11.3%",
+        "Bit error differs from whole-frame failure"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 19"
+    },
+    {
+      "id": "03_wlan-09",
+      "type": "open",
+      "topic": "Coordination functions",
+      "prompt": "Compare DCF with the optional PCF described in the deck. How can contention-based and contention-free service coexist in a BSS?",
+      "answer": "DCF uses distributed CSMA/CA contention. PCF has an AP-based coordinator poll stations during a contention-free period. The BSS can alternate contention periods and coordinator-controlled periods.",
+      "explanation": "PCF is optional and its scheduled period is not the same as ordinary DCF contention.",
+      "key_points": [
+        "Distributed contention versus centralized polling",
+        "AP coordinator for PCF",
+        "Alternating service periods"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 20–21, 31"
+    },
+    {
+      "id": "03_wlan-10",
+      "type": "open",
+      "topic": "RTS threshold",
+      "prompt": "Why might a WLAN use RTS/CTS for large frames but skip it for short ones? Distinguish reservation overhead from the cost of a failed data transmission.",
+      "answer": "RTS/CTS consumes airtime even when no collision would occur. For long data frames, preventing a collision or replacing it with a short RTS collision can save substantial airtime. For short frames the extra exchange may cost more than it saves.",
+      "explanation": "The threshold trades constant protection overhead against collision cost.",
+      "key_points": [
+        "Extra control airtime",
+        "Long collisions are more expensive",
+        "Short frames may not justify protection"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 22–26"
+    },
+    {
+      "id": "03_wlan-11",
+      "type": "open",
+      "topic": "Timing priority",
+      "prompt": "Explain the ordering SIFS<PIFS<DIFS. How does it prioritize an ACK and allow the point coordinator to begin PCF service before ordinary DCF traffic?",
+      "answer": "An immediate ACK waits SIFS; the coordinator can act after PIFS; new DCF contenders wait DIFS. Shorter waits gain access first when the channel becomes idle.",
+      "explanation": "The ordering establishes priority without requiring all stations to negotiate for each immediate response.",
+      "key_points": [
+        "SIFS<PIFS<DIFS",
+        "Immediate response first",
+        "Coordinator before new DCF contenders"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 27–31"
+    },
+    {
+      "id": "03_wlan-12",
+      "type": "open",
+      "topic": "Slots and backoff",
+      "prompt": "Explain why WLAN slot time depends on the physical-layer implementation, and distinguish an interframe space from a contention backoff.",
+      "answer": "Slot time is a PHY-dependent timing unit for contention. An interframe space is a required idle interval associated with frame priority; backoff adds a random number of slots to spread competing attempts.",
+      "explanation": "A random backoff and a fixed priority wait serve different functions.",
+      "key_points": [
+        "PHY-dependent unit",
+        "Fixed idle priority wait",
+        "Random slots reduce simultaneous access"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 21, 29–30"
+    },
+    {
+      "id": "03_wlan-13",
+      "type": "open",
+      "topic": "Network association",
+      "prompt": "Describe passive and active scanning and what association achieves. Does hearing a beacon already mean the station has an IP address?",
+      "answer": "Passive scanning listens for AP beacons; active scanning sends probe requests and receives responses. The station selects an AP and exchanges association messages. Link association and IP configuration are separate; DHCP may follow.",
+      "explanation": "Discovery, joining the link and obtaining network-layer configuration are distinct steps.",
+      "key_points": [
+        "Listen versus probe",
+        "Select AP and associate",
+        "IP configuration is a separate step"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 32–34"
+    },
+    {
+      "id": "03_wlan-14",
+      "type": "open",
+      "topic": "Channel planning",
+      "prompt": "Two neighboring APs use nearby partially overlapping 2.4 GHz channels. Explain the interference risk and why choosing different channel numbers alone is insufficient.",
+      "answer": "A channel occupies a frequency range wider than the spacing between channel centers, so different numbered channels may overlap substantially. Planning should use suitably separated channels rather than merely unequal numbers.",
+      "explanation": "This tests spectral overlap without treating one region's channel availability as universal.",
+      "key_points": [
+        "Finite occupied bandwidth",
+        "Different numbers can overlap",
+        "Choose sufficiently separated channels"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 32"
+    },
+    {
+      "id": "03_wlan-15",
+      "type": "open",
+      "topic": "MAC frames",
+      "prompt": "Classify association, RTS, CTS, ACK and user-data frames. Distinguish the roles of CRC, ACK and sequence numbers.",
+      "answer": "Association is management; RTS, CTS and ACK are control; user payload travels in data frames. CRC detects corruption, ACK confirms reception, and sequence numbers support recognizing repeated frames.",
+      "explanation": "Error detection, confirmation and duplicate suppression solve different reliability problems.",
+      "key_points": [
+        "Correct frame classes",
+        "CRC versus ACK",
+        "Sequence numbers detect duplicates"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 35–36, 47–49"
+    },
+    {
+      "id": "03_wlan-16",
+      "type": "open",
+      "topic": "Address interpretation",
+      "prompt": "A station H sends a frame through AP P to a wired router R. What are Address 1, Address 2 and Address 3? Explain why two addresses would not be enough.",
+      "answer": "Address 1 is P, the immediate wireless receiver; Address 2 is H, the wireless transmitter; Address 3 is R, the ultimate link-layer destination across the distribution system. The AP must preserve both the radio-hop and bridged-endpoint information.",
+      "explanation": "The receiver of this radio transmission need not be the destination of the bridged payload.",
+      "key_points": [
+        "A1=P",
+        "A2=H and A3=R",
+        "Immediate receiver differs from ultimate destination"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 37–45"
+    },
+    {
+      "id": "03_wlan-17",
+      "type": "open",
+      "topic": "Bridging reverse direction",
+      "prompt": "A wired router R sends a packet to wireless station H through AP P. Give the Ethernet source/destination and the resulting Wi-Fi Address 1–3 values.",
+      "answer": "Ethernet source is R and destination is H. On the wireless hop Address 1 is H, Address 2 is P and Address 3 is R.",
+      "explanation": "The transmitting bridge changes while the original endpoint identity remains available.",
+      "key_points": [
+        "Ethernet R to H",
+        "Wi-Fi A1=H and A2=P",
+        "A3 preserves R"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 38–45"
+    },
+    {
+      "id": "03_wlan-18",
+      "type": "open",
+      "topic": "Four-address frames",
+      "prompt": "When would 802.11 need four addresses rather than the three used in ordinary infrastructure traffic? Name the four distinct roles.",
+      "answer": "Distribution-system forwarding over a wireless link can require immediate receiver, immediate transmitter, original destination and original source. Four-address frames preserve all four when both ends of the wireless hop are forwarding devices.",
+      "explanation": "Clarification: ordinary ad-hoc operation alone does not imply a fourth address.",
+      "key_points": [
+        "Wireless distribution forwarding",
+        "Immediate receiver and transmitter",
+        "Original source and destination"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 37–42"
+    },
+    {
+      "id": "03_wlan-19",
+      "type": "open",
+      "topic": "Mobility",
+      "prompt": "H roams between APs connected by bridges within one IP subnet. Why can its IP address and TCP connections remain valid? What changes if it must join a different subnet without a mobility mechanism?",
+      "answer": "Within one subnet, the radio association and forwarding path change while the IP endpoint stays the same. On a different subnet it generally needs different IP configuration, so existing TCP connections bound to the old address cannot simply continue.",
+      "explanation": "Link mobility and network-layer address continuity are separate concerns.",
+      "key_points": [
+        "Same subnet can preserve IP",
+        "Association/forwarding changes",
+        "Address change disrupts ordinary TCP continuity"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 46"
+    },
+    {
+      "id": "03_wlan-20",
+      "type": "open",
+      "topic": "Duplicate handling",
+      "prompt": "A receiver accepts a frame but its ACK is lost. What does the sender do, and how do Retry, sequence number and fragment number help the receiver?",
+      "answer": "The sender may retransmit. Retry flags the retransmission, the sequence number associates it with the original frame, and the fragment number identifies the piece. Together they support duplicate detection while still acknowledging delivery.",
+      "explanation": "Correct reception followed by ACK loss must not produce duplicate user data.",
+      "key_points": [
+        "Retransmission after missing ACK",
+        "Retry and sequence identify repeat",
+        "Fragment number identifies piece"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 47–50"
+    },
+    {
+      "id": "03_wlan-21",
+      "type": "open",
+      "topic": "Power saving",
+      "prompt": "What problem do the Power Management and More Data flags address? Explain why a sleeping station may need the AP to buffer traffic.",
+      "answer": "A station indicates its power-saving state so the AP can accommodate periods when its receiver is unavailable. The AP buffers pending traffic; More Data indicates additional queued frames for that station.",
+      "explanation": "Reducing receiver-on time saves energy but requires coordination for downlink delivery.",
+      "key_points": [
+        "Signal power state",
+        "AP buffers for sleeping station",
+        "More Data indicates pending frames"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 48–49"
+    },
+    {
+      "id": "03_wlan-22",
+      "type": "open",
+      "topic": "MAC and PHY roles",
+      "prompt": "Compare Duration/NAV, the MAC CRC, the PHY preamble and the PHY header. Which one synchronizes reception and which one reserves airtime?",
+      "answer": "Duration advertises the exchange's remaining reservation for NAV. MAC CRC detects frame errors. The PHY preamble helps synchronization and detection; the PHY header communicates parameters needed to decode the transmission.",
+      "explanation": "These fields operate at different stages and should not be treated as interchangeable overhead.",
+      "key_points": [
+        "NAV reserves time",
+        "CRC detects corruption",
+        "Preamble synchronizes and PHY header describes transmission"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 49–51"
+    },
+    {
+      "id": "03_wlan-23",
+      "type": "open",
+      "topic": "802.11 generations",
+      "prompt": "Compare 802.11b, 802.11a and 802.11g in terms of band and transmission technique. Why was g useful for compatibility with existing b deployments?",
+      "answer": "b uses the 2.4 GHz band and DSSS-family transmission; a uses 5 GHz and OFDM; g brings OFDM to 2.4 GHz while supporting coexistence/compatibility with b equipment.",
+      "explanation": "A generation's rate is only one dimension; frequency and compatible PHY behavior also matter.",
+      "key_points": [
+        "b: 2.4 GHz and DSSS",
+        "a: 5 GHz and OFDM",
+        "g: 2.4 GHz OFDM with b compatibility"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 52–55"
+    },
+    {
+      "id": "03_wlan-24",
+      "type": "open",
+      "topic": "MIMO and channel width",
+      "prompt": "What mechanisms let 802.11n and 802.11ac increase rates over earlier generations? Why does a wider channel or more antennas not automatically deliver the advertised maximum?",
+      "answer": "n uses multiple spatial streams and wider channels; ac extends channel width and stream count and uses denser modulation. Actual performance depends on device capabilities, channel quality, contention and protocol overhead.",
+      "explanation": "Headline PHY capacity differs from application throughput and requires suitable conditions.",
+      "key_points": [
+        "Spatial multiplexing",
+        "Wider channels and denser modulation",
+        "Practical conditions and overhead limit throughput"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 56–57"
+    },
+    {
+      "id": "03_wlan-25",
+      "type": "open",
+      "topic": "802.11ac versus ax",
+      "prompt": "According to the mechanisms emphasized in the deck, how does 802.11ax extend ac? Give two changes and explain why increasing modulation order is conditional on channel quality.",
+      "answer": "The deck highlights operation in 2.4 and 5 GHz rather than ac's 5 GHz-only operation, uplink multi-user/multi-stream capabilities, and 1024-QAM. Denser constellations need adequate SNR to keep symbols distinguishable.",
+      "explanation": "This is a comparison of the covered generations, not a complete inventory of ax features.",
+      "key_points": [
+        "Valid band or uplink improvement",
+        "1024-QAM or another deck-supported change",
+        "Higher-order modulation requires adequate SNR"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 56–58"
+    },
+    {
+      "id": "03_wlan-26",
+      "type": "open",
+      "topic": "Troubleshooting",
+      "prompt": "A WLAN shows a high negotiated PHY rate but poor application throughput. Give three distinct explanations from the deck and one useful observation for distinguishing each.",
+      "answer": "Interference or multipath can raise error/retry rates; contention can increase channel-busy time and backoff; short payloads or RTS/CTS can make overhead dominant. Compare retry/error statistics, busy airtime, and frame-size/control-frame distribution.",
+      "explanation": "A high PHY rate describes transmission while active, not how often useful data can be delivered.",
+      "key_points": [
+        "Three distinct supported mechanisms",
+        "Observations linked to each mechanism",
+        "PHY rate differs from delivered throughput"
+      ],
+      "source": "3_WLAN-decrypted.pdf, PDF pages 10–12, 18–29, 49, 56–58"
+    }
+  ]
+}

@@ -1,0 +1,547 @@
+{
+  "schema_version": 1,
+  "title": "IoT · 02 · Medium access protocols",
+  "sources": [
+    "2_Access Protocols-decrypted.pdf"
+  ],
+  "notes": [
+    "All references use PDF page numbers. Questions emphasize mechanisms, reasoning and representative calculations rather than incidental history.",
+    "TDMA/FDMA delay expressions assume the lecture's homogeneous Poisson-arrival, ideal-channel, negligible-propagation and stable-load model; they are not universal delay guarantees.",
+    "Clarifications beyond the slides: p=0 in p-persistent CSMA never transmits; it is not non-persistent CSMA. Geometric mean 1/A counts trials INCLUDING success; failed trials have mean (1-A)/A. The lecture's CSMA/CD efficiency is a simplified analytical model.",
+    "RTS/CTS is an optional protection exchange in WLANs; CSMA/CA does not eliminate collisions. Missing ACKs indicate failure without identifying its exact cause."
+  ],
+  "questions": [
+    {
+      "id": "02_access_protocols-01",
+      "type": "open",
+      "topic": "Shared medium",
+      "prompt": "Why does a multipoint LAN need a medium-access protocol, and how is this different from choosing a bus, ring or star topology?",
+      "answer": "Several stations share transmission capacity, so simultaneous transmissions may interfere. A MAC protocol decides when stations may transmit; topology describes their interconnection.",
+      "explanation": "Physical connectivity alone does not coordinate competing transmitters.",
+      "key_points": [
+        "Shared capacity and possible interference",
+        "MAC controls access",
+        "Topology describes connections"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 3–5"
+    },
+    {
+      "id": "02_access_protocols-02",
+      "type": "open",
+      "topic": "Allocation",
+      "prompt": "A network has many sensors that transmit only occasionally. Explain one advantage and one cost of dynamic allocation compared with fixed FDMA or TDMA.",
+      "answer": "Dynamic allocation gives capacity to active sensors instead of reserving idle resources. Its coordination or contention consumes capacity and adds complexity, delay or collisions.",
+      "explanation": "Fixed shares can remain unused even while another sensor has data waiting.",
+      "key_points": [
+        "Use capacity according to demand",
+        "Avoid idle reservations",
+        "Control overhead or contention cost"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 6–11"
+    },
+    {
+      "id": "02_access_protocols-03",
+      "type": "open",
+      "topic": "Allocation",
+      "prompt": "Compare centralized and distributed dynamic access. Who makes the access decision, and what control communication is needed?",
+      "answer": "Centralized access uses a coordinator that receives requests and grants transmission rights. Distributed access has stations coordinate through shared rules and control information without one grant-making authority.",
+      "explanation": "Both need coordination; distribution changes where that coordination happens.",
+      "key_points": [
+        "Coordinator issues grants in centralized access",
+        "Stations coordinate in distributed access",
+        "Control communication consumes resources"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 9–10, 41"
+    },
+    {
+      "id": "02_access_protocols-04",
+      "type": "open",
+      "topic": "Performance",
+      "prompt": "For N stations each generating lambda packets/s of L bits, express offered traffic and delivered throughput with packet loss probability p_loss. When can throughput divided by capacity be interpreted as utilization?",
+      "answer": "Offered traffic is N*lambda*L bit/s; delivered throughput is N*lambda*L*(1-p_loss). Dividing delivered throughput by C gives normalized throughput. Identifying it with useful busy-time utilization needs the ideal lossless assumptions used in the lecture.",
+      "explanation": "Retransmissions, collisions and overhead may occupy the channel without contributing delivered payload.",
+      "key_points": [
+        "Offered traffic N*lambda*L",
+        "Delivered traffic includes success probability",
+        "State assumptions for utilization"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 15–17"
+    },
+    {
+      "id": "02_access_protocols-05",
+      "type": "open",
+      "topic": "TDMA",
+      "prompt": "In ideal TDMA with N stations, packets of L bits and channel rate C, derive slot and frame duration. Name the three components of packet delay.",
+      "answer": "A slot lasts L/C seconds and an N-slot frame lasts N*L/C. Delay comprises serialization, waiting behind earlier packets, and waiting for the station's assigned slot.",
+      "explanation": "A station uses the full rate during its own slot but cannot transmit at arbitrary times.",
+      "key_points": [
+        "Slot L/C",
+        "Frame N*L/C",
+        "Serialization, queue and slot waiting"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 18–21"
+    },
+    {
+      "id": "02_access_protocols-06",
+      "type": "open",
+      "topic": "FDMA and duplexing",
+      "prompt": "Why does a packet take N*L/C seconds to serialize under equal-share FDMA? Explain the purpose of guard bands and distinguish FDD from TDD.",
+      "answer": "Each station has rate C/N, giving L/(C/N)=N*L/C. Guard bands limit adjacent-channel interference. FDD separates directions by frequency; TDD alternates directions in time on a channel.",
+      "explanation": "Resource sharing among users and separation of transmission directions are different design choices.",
+      "key_points": [
+        "Per-station rate C/N",
+        "Guard bands reduce adjacent interference",
+        "FDD frequency versus TDD time"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 22–26"
+    },
+    {
+      "id": "02_access_protocols-07",
+      "type": "open",
+      "topic": "Delay comparison",
+      "prompt": "The lecture gives D_TDMA=L/C+Q+N*L/(2*C) and D_FDMA=N*L/C+Q, with the same queueing term Q. Compare delays and explain why equal throughput does not imply equal delay.",
+      "answer": "D_FDMA-D_TDMA=(N/2-1)*L/C. In this model TDMA has lower delay for N>2, equal delay for N=2. FDMA continuously provides a smaller rate, while TDMA provides bursts at full rate after slot waiting.",
+      "explanation": "Throughput describes delivered volume; delay also depends on how service is scheduled.",
+      "key_points": [
+        "Correct subtraction",
+        "Condition N>2",
+        "Different serialization and waiting despite equal throughput"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 20–28"
+    },
+    {
+      "id": "02_access_protocols-08",
+      "type": "open",
+      "topic": "Load calculation",
+      "prompt": "Sixteen stations generate 40 packets/s each; each packet is 1000 bytes and C=10 Mbit/s. Assuming lossless stable service, calculate aggregate throughput and normalized load. What happens to queueing delay as load approaches one?",
+      "answer": "Throughput is 16*40*8000=5.12 Mbit/s; normalized load is 0.512. Under the lecture's queueing model delay increases sharply and diverges as load approaches one.",
+      "explanation": "Bytes must be converted to bits before comparing traffic with bit/s capacity.",
+      "key_points": [
+        "5.12 Mbit/s",
+        "0.512 load",
+        "Delay grows without bound in the ideal model near saturation"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 34–35"
+    },
+    {
+      "id": "02_access_protocols-09",
+      "type": "open",
+      "topic": "TDMA overhead",
+      "prompt": "A TDMA frame lasts 10 ms and contains 10 slots. Each slot includes a 200 us guard and transmits 180 payload bits plus 20 header bits. Calculate the physical transmission rate during the useful slot and each user's net payload rate.",
+      "answer": "Slots last 1 ms, leaving 0.8 ms for 200 bits. The transmission rate is 250 kbit/s. Each user gets 180 useful bits per 10 ms, or 18 kbit/s.",
+      "explanation": "The physical rate during transmission differs from average per-user payload throughput.",
+      "key_points": [
+        "0.8 ms useful time",
+        "250 kbit/s physical rate",
+        "18 kbit/s per user"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 36–38"
+    },
+    {
+      "id": "02_access_protocols-10",
+      "type": "open",
+      "topic": "CDMA",
+      "prompt": "Explain how CDMA lets multiple transmitters share time and frequency. How does correlation recover one user's data, and what property of the codes matters?",
+      "answer": "Each data symbol multiplies a faster chip sequence. The receiver correlates the superposed signal with the intended code and normalizes by code length. Orthogonal codes ideally cancel other synchronized users' contributions.",
+      "explanation": "Distinct codes alone are insufficient: their cross-correlation determines interference rejection.",
+      "key_points": [
+        "Spreading with faster chips",
+        "Correlation with intended code",
+        "Orthogonality or low cross-correlation"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 29–33"
+    },
+    {
+      "id": "02_access_protocols-11",
+      "type": "open",
+      "topic": "CDMA calculation",
+      "prompt": "Let c1=(1,1,-1,-1), c2=(1,-1,1,-1), d1=+1 and d2=-1. In an ideal synchronous CDMA channel compute y=d1*c1+d2*c2 and recover d1 by correlation.",
+      "answer": "y=(0,2,-2,0). Its dot product with c1 is 4; dividing by code length 4 recovers d1=+1. The contribution from c2 vanishes because c1 dot c2=0.",
+      "explanation": "This is an adapted numerical example of the slides' encoding and decoding mechanism.",
+      "key_points": [
+        "Received chips (0,2,-2,0)",
+        "Normalized correlation gives +1",
+        "Orthogonal interfering code cancels"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 30–33"
+    },
+    {
+      "id": "02_access_protocols-12",
+      "type": "open",
+      "topic": "Dynamic access",
+      "prompt": "Compare controlled access with random access. Why can random access have both low coordination overhead and unpredictable delay?",
+      "answer": "Controlled access requires permission such as a grant or token. Random access lets stations contend using common rules; this avoids allocating an explicit turn to every transmission, but collisions and retries make delay variable.",
+      "explanation": "Low coordination overhead does not imply low delay under every load.",
+      "key_points": [
+        "Permission versus contention",
+        "Less explicit scheduling",
+        "Collisions and retransmissions cause variable delay"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 41–44"
+    },
+    {
+      "id": "02_access_protocols-13",
+      "type": "open",
+      "topic": "Pure ALOHA",
+      "prompt": "For equal packet duration T, explain why pure ALOHA has a 2T vulnerable period. Would eliminating propagation delay eliminate its collisions?",
+      "answer": "Another frame starting between T before and T after the tagged frame's start can overlap it. Collisions remain with zero propagation delay because ALOHA transmits without coordinating or sensing other traffic.",
+      "explanation": "The vulnerable period follows from overlap of complete frame intervals, not just propagation.",
+      "key_points": [
+        "Starts in a 2T interval can collide",
+        "Asynchronous uncoordinated transmission",
+        "Zero propagation does not remove overlap"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 45–50"
+    },
+    {
+      "id": "02_access_protocols-14",
+      "type": "open",
+      "topic": "ALOHA throughput",
+      "prompt": "Under Poisson transmission attempts, derive S=G*exp(-2G) for pure ALOHA and identify its maximum. What is included in G?",
+      "answer": "G counts new attempts and retransmissions per packet-transmission time. No other attempt during 2T has probability exp(-2G), so S=G*exp(-2G). Differentiating gives G=1/2 and S_max=1/(2e), about 0.184.",
+      "explanation": "Retransmissions increase offered attempt load without increasing the rate of new information.",
+      "key_points": [
+        "G includes retries",
+        "Poisson zero-arrival probability",
+        "Peak at G=0.5 and 1/(2e)"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 51–54"
+    },
+    {
+      "id": "02_access_protocols-15",
+      "type": "open",
+      "topic": "Collision timeline",
+      "prompt": "ALOHA frames have length 1000 bytes and start at 400, 405 and 410 ms. With zero propagation, compare collisions at 2 Mbit/s and 1 Mbit/s. State the overlapping intervals.",
+      "answer": "At 2 Mbit/s frames last 4 ms: [400,404), [405,409), [410,414), with no overlap. At 1 Mbit/s they last 8 ms: the first two overlap during [405,408), and the last two during [410,413).",
+      "explanation": "Changing rate changes serialization time and therefore overlap even when start times do not change.",
+      "key_points": [
+        "4 ms versus 8 ms durations",
+        "No collisions at 2 Mbit/s",
+        "Two 3 ms overlap intervals at 1 Mbit/s"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 61–64"
+    },
+    {
+      "id": "02_access_protocols-16",
+      "type": "open",
+      "topic": "Backoff",
+      "prompt": "Why can fixed identical retry delays cause repeated collisions? If retry delay is chosen uniformly from 0,T,...,(K-1)T, calculate its mean and explain the cost of increasing K.",
+      "answer": "Identical delays keep colliding stations synchronized. Random delays separate their attempts. Mean backoff is (K-1)*T/2; a larger K generally reduces repeated contention but adds waiting.",
+      "explanation": "A wider retry window trades faster individual retries for fewer simultaneous retries.",
+      "key_points": [
+        "Identical delays preserve synchronization",
+        "Mean (K-1)*T/2",
+        "Collision reduction versus extra wait"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 48, 50, 56–60"
+    },
+    {
+      "id": "02_access_protocols-17",
+      "type": "open",
+      "topic": "ALOHA delay",
+      "prompt": "Given pure ALOHA success probability exp(-2G), what are the mean attempts and failed attempts per successfully delivered frame in the lecture's independent-attempt model? Which delay components follow from retries?",
+      "answer": "Mean attempts are exp(2G); mean failed attempts are exp(2G)-1. Failures add wasted serialization, ACK timeout and random backoff; the successful attempt also needs serialization and propagation.",
+      "explanation": "The final successful attempt must not be counted as a failed transmission.",
+      "key_points": [
+        "exp(2G) attempts",
+        "exp(2G)-1 failures",
+        "Wasted transmission, timeout and backoff"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 57–59"
+    },
+    {
+      "id": "02_access_protocols-18",
+      "type": "open",
+      "topic": "Slotted ALOHA",
+      "prompt": "Explain how slot synchronization changes ALOHA's vulnerable period and throughput. Derive the peak of S=G*exp(-G).",
+      "answer": "Frames begin only at slot boundaries, reducing vulnerability from 2T to T. S has derivative exp(-G)*(1-G), so it peaks at G=1 with S=1/e, about 0.368, twice pure ALOHA's peak.",
+      "explanation": "Synchronization removes partial overlaps between frames beginning in adjacent slots.",
+      "key_points": [
+        "Vulnerability T",
+        "Derivative or equivalent peak argument",
+        "G=1 and S=1/e"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 65–73"
+    },
+    {
+      "id": "02_access_protocols-19",
+      "type": "open",
+      "topic": "Finite station model",
+      "prompt": "N independent stations attempt in a slot with probability p each. Derive the probability of success, find the maximizing p, and explain the large-N limit.",
+      "answer": "Exactly one attempt succeeds: S=N*p*(1-p)^(N-1). For N>1 the maximum occurs at p=1/N, giving (1-1/N)^(N-1), which approaches 1/e. With one station, always transmitting gives success probability one.",
+      "explanation": "Both empty slots and slots with multiple attempts waste potential throughput.",
+      "key_points": [
+        "Exactly one sender",
+        "Optimal p=1/N",
+        "Limit 1/e with N=1 handled separately"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 70–76"
+    },
+    {
+      "id": "02_access_protocols-20",
+      "type": "open",
+      "topic": "Slotted delay",
+      "prompt": "Why can slotted ALOHA have an extra waiting cost at very light load despite its higher peak throughput? What average initial wait follows for uniformly timed arrivals?",
+      "answer": "An arriving frame must wait for the next slot boundary. With arrival phase uniform within a T-long slot, this initial wait averages T/2. Under higher load, fewer collisions can compensate for that cost.",
+      "explanation": "Peak throughput and low-load latency measure different aspects of performance.",
+      "key_points": [
+        "Wait for next boundary",
+        "Mean T/2 under uniform phase",
+        "Fewer collisions can offset waiting"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 65–68, 77–78"
+    },
+    {
+      "id": "02_access_protocols-21",
+      "type": "open",
+      "topic": "Stability",
+      "prompt": "Use a backlog of blocked stations to explain ALOHA overload and distinguish stable from unstable equilibrium. Why can aggressive retransmission make congestion worse?",
+      "answer": "At equilibrium new arrival rate equals departure rate. Stability requires a small backlog increase to produce a restoring net decrease. Aggressive retries raise attempt load, causing more collisions, fewer departures and still more backlog.",
+      "explanation": "The sign of arrival-minus-departure drift determines stability; equality alone is insufficient.",
+      "key_points": [
+        "Arrivals equal departures at equilibrium",
+        "Restoring drift for stability",
+        "Retry-collision-backlog feedback"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 81–86"
+    },
+    {
+      "id": "02_access_protocols-22",
+      "type": "open",
+      "topic": "CSMA",
+      "prompt": "A CSMA sender senses an idle channel although another station has just started transmitting. Explain how this can happen and interpret a=tau/T.",
+      "answer": "The other signal may not have propagated to the sensing station yet. tau is end-to-end propagation time and T is frame serialization time; small a makes sensing relatively current and useful, while large a leaves a substantial vulnerable interval.",
+      "explanation": "Carrier sensing reduces collisions but does not provide instantaneous global knowledge.",
+      "key_points": [
+        "Finite propagation permits stale sensing",
+        "a=tau/T",
+        "Small a improves sensing effectiveness"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 87–94"
+    },
+    {
+      "id": "02_access_protocols-23",
+      "type": "open",
+      "topic": "CSMA persistence",
+      "prompt": "Compare non-persistent and 1-persistent CSMA when several stations find a busy channel. Why can their relative performance change with load?",
+      "answer": "Non-persistent stations wait a random interval before sensing again. 1-persistent stations keep sensing and transmit as soon as the channel becomes idle. The latter avoids idle waits at light load but synchronizes many queued senders at heavy load.",
+      "explanation": "Persistence affects how aggressively contenders converge on the same newly idle channel.",
+      "key_points": [
+        "Random resensing versus continuous sensing",
+        "1-persistent can reduce light-load waiting",
+        "Synchronized contention under high load"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 95–99, 110"
+    },
+    {
+      "id": "02_access_protocols-24",
+      "type": "open",
+      "topic": "CSMA persistence",
+      "prompt": "In p-persistent slotted CSMA, what happens in an idle slot? Explain the trade-off in p and the behavior at p=0 and p=1.",
+      "answer": "A ready station transmits with probability p and defers to a later slot otherwise. Small p leaves idle opportunities; large p raises collision risk with many contenders. At p=0 it never transmits; p=1 is 1-persistent behavior.",
+      "explanation": "Clarification beyond the slide: p=0 is not equivalent to non-persistent CSMA.",
+      "key_points": [
+        "Probabilistic attempt in idle slots",
+        "Idle slots versus collisions",
+        "Correct p=0 and p=1 limits"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 95"
+    },
+    {
+      "id": "02_access_protocols-25",
+      "type": "open",
+      "topic": "Slot meanings",
+      "prompt": "Why are the basic slots in slotted ALOHA and the lecture's slotted CSMA model not the same length?",
+      "answer": "ALOHA slots last a complete packet time T so starts align and partial packet overlaps disappear. The slotted CSMA analytical model uses a much shorter propagation-related slot tau for sensing and contention.",
+      "explanation": "A time slot is a protocol-defined unit, not one universal physical duration.",
+      "key_points": [
+        "ALOHA slot equals T",
+        "CSMA model uses tau",
+        "Different purposes: frame alignment versus sensing"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 65, 94, 106–108"
+    },
+    {
+      "id": "02_access_protocols-26",
+      "type": "open",
+      "topic": "CSMA analysis",
+      "prompt": "In a busy/idle-cycle analysis of CSMA, why is throughput E[successful transmission time]/(E[busy time]+E[idle time]) rather than the fraction of cycles that succeed?",
+      "answer": "Cycles can have different lengths, so counting successful cycles gives the wrong time weighting. The numerator measures useful serialized time while the denominator includes all busy, collision and idle time.",
+      "explanation": "Throughput is useful work per unit time, requiring a time-based average.",
+      "key_points": [
+        "Cycles have variable duration",
+        "Useful time divided by total time",
+        "Include idle and collision costs"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 100–108"
+    },
+    {
+      "id": "02_access_protocols-27",
+      "type": "open",
+      "topic": "CSMA performance",
+      "prompt": "For non-persistent CSMA, the lecture gives S=G*exp(-aG)/(G*(1+2a)+exp(-aG)). With G fixed and positive, what happens as a approaches zero? Why should quoted peak efficiencies always include their assumptions?",
+      "answer": "The limit is G/(G+1). It approaches one only as G then becomes large. Finite a, persistence rules and load change efficiency, so a plot's high peak is not a universal CSMA guarantee.",
+      "explanation": "The order and conditions of limits matter; small propagation alone does not make an almost empty channel fully utilized.",
+      "key_points": [
+        "Limit G/(G+1)",
+        "Large G needed for unity after a tends to zero",
+        "Efficiency depends on load, propagation and protocol"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 103–105, 110–111"
+    },
+    {
+      "id": "02_access_protocols-28",
+      "type": "open",
+      "topic": "CSMA/CD",
+      "prompt": "What does collision detection add to carrier sensing? Explain the roles of aborting transmission, the jam signal and backoff.",
+      "answer": "The sender monitors the medium during transmission. On detecting a collision it aborts, emits a jam indication so stations recognize the failed frame, and retries after backoff. Early abort wastes less channel time than finishing a doomed frame.",
+      "explanation": "Collision detection mainly reduces the cost of a collision; it does not make simultaneous starts impossible.",
+      "key_points": [
+        "Monitor while transmitting",
+        "Abort and notify with jam",
+        "Backoff and reduced wasted airtime"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 112–115, 123"
+    },
+    {
+      "id": "02_access_protocols-29",
+      "type": "open",
+      "topic": "CSMA/CD efficiency",
+      "prompt": "Using only the lecture's approximation eta=1/(1+6.44a), estimate eta for a=0.01 and a=0.1. Explain the difference physically.",
+      "answer": "eta is about 0.939 at a=0.01 and 0.608 at a=0.1. Greater propagation relative to serialization increases contention and collision overhead per useful frame.",
+      "explanation": "These values belong to a simplified model and are not measured Ethernet guarantees.",
+      "key_points": [
+        "Approximately 93.9% and 60.8%",
+        "Propagation overhead relative to serialization",
+        "State simplified-model scope"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 116–123"
+    },
+    {
+      "id": "02_access_protocols-30",
+      "type": "open",
+      "topic": "Contention probability",
+      "prompt": "A contention interval succeeds with independent probability A. What are the mean intervals until success and mean failed intervals? How does this clarify the geometric-distribution expression in the slides?",
+      "answer": "The mean number of trials including success is 1/A; the mean failed intervals is (1-A)/A. Thus a formula using 1/A must count the successful contention trial as well as failures.",
+      "explanation": "The lecture labels a geometric trial count as collisions; distinguishing trials from failures avoids an off-by-one error.",
+      "key_points": [
+        "1/A includes success",
+        "(1-A)/A failures",
+        "Distinguish contention trials from collisions"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 117–120"
+    },
+    {
+      "id": "02_access_protocols-31",
+      "type": "open",
+      "topic": "Wireless limitations",
+      "prompt": "A and C cannot hear each other but both reach B. Explain a hidden-terminal collision and why A's carrier sensing or collision detection is insufficient.",
+      "answer": "A can transmit to B while C senses no nearby transmission and starts sending to B too. The interference occurs at B, so A's local sensing cannot reliably reveal it. Wireless therefore uses avoidance and receiver feedback.",
+      "explanation": "Channel conditions and interference are receiver-dependent.",
+      "key_points": [
+        "Hidden senders share receiver B",
+        "C may sense idle while B receives A",
+        "Local sensing cannot guarantee receiver success"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 124–125"
+    },
+    {
+      "id": "02_access_protocols-32",
+      "type": "open",
+      "topic": "CSMA/CA exchange",
+      "prompt": "With RTS/CTS enabled, describe the successful RTS–CTS–DATA–ACK exchange. Which frames are sent by the receiver and what does each establish?",
+      "answer": "The sender contends and sends RTS. The receiver returns CTS, the sender sends DATA, and the receiver acknowledges correct reception with ACK. CTS grants the protected exchange; ACK confirms that the data arrived.",
+      "explanation": "Permission to send and evidence of successful reception are separate events.",
+      "key_points": [
+        "RTS then CTS then DATA then ACK",
+        "Receiver sends CTS and ACK",
+        "Authorization differs from delivery confirmation"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 125–130"
+    },
+    {
+      "id": "02_access_protocols-33",
+      "type": "open",
+      "topic": "Interframe priority",
+      "prompt": "Why must SIFS be shorter than DIFS? Explain what would go wrong if a new contender could transmit before an exchange's CTS or ACK.",
+      "answer": "Shorter SIFS lets immediate responses and protected data proceed before new DCF contenders finish DIFS. Otherwise fresh traffic could interrupt the exchange or collide with its control responses.",
+      "explanation": "Priority follows from a shorter mandatory idle wait.",
+      "key_points": [
+        "SIFS<DIFS",
+        "Responses take priority",
+        "Prevent interruption by new contenders"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 126, 129–130"
+    },
+    {
+      "id": "02_access_protocols-34",
+      "type": "open",
+      "topic": "NAV",
+      "prompt": "How can CTS and the Network Allocation Vector protect B from a hidden station C that never heard A's RTS? Distinguish physical and virtual carrier sensing.",
+      "answer": "C can hear B's CTS and set a NAV timer for the announced remaining exchange. Physical sensing observes radio activity; virtual sensing honors a reservation even when the local medium currently sounds idle.",
+      "explanation": "Protection depends on hearing the relevant control information and is not an absolute collision guarantee.",
+      "key_points": [
+        "C learns reservation from B",
+        "NAV defers for remaining exchange",
+        "Radio sensing versus reservation timer"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 131–132"
+    },
+    {
+      "id": "02_access_protocols-35",
+      "type": "open",
+      "topic": "Backoff countdown",
+      "prompt": "A station has four idle backoff slots left when another transmission begins. Describe what happens before it may transmit again. Why not count down during the busy period?",
+      "answer": "It freezes the counter at four, waits for the medium to become idle and remain so for DIFS, then resumes counting idle contention slots. Counting busy time would let multiple waiting stations expire without usable access opportunities.",
+      "explanation": "Backoff counts opportunities to contend, not just elapsed wall-clock time.",
+      "key_points": [
+        "Freeze remaining counter",
+        "Wait idle plus DIFS",
+        "Resume only in idle slots"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 127, 133–135"
+    },
+    {
+      "id": "02_access_protocols-36",
+      "type": "open",
+      "topic": "Retry causes",
+      "prompt": "Can a sender infer a collision solely from missing CTS or ACK? Explain two other failure possibilities and why the contention window is enlarged after repeated failures.",
+      "answer": "No. A control or data frame may be corrupted or lost through channel errors; an ACK may itself be lost even if data arrived. A larger random window spreads future attempts to reduce repeated contention.",
+      "explanation": "Receiver feedback detects lack of confirmed progress, not a unique physical cause.",
+      "key_points": [
+        "No unique collision diagnosis",
+        "Data or response corruption/loss",
+        "Wider window reduces repeat collisions"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 133–136"
+    },
+    {
+      "id": "02_access_protocols-37",
+      "type": "open",
+      "topic": "Reliability and fragmentation",
+      "prompt": "Why are sequence/fragment identifiers needed when retransmissions are used? Explain the benefit and cost of sending a large data unit in fragments.",
+      "answer": "A lost ACK can cause retransmission of already received data; identifiers allow duplicate detection and fragment reassembly. Smaller fragments reduce data resent after one error, but require more headers, control exchanges and processing.",
+      "explanation": "An ACK failure must not turn a successful earlier reception into duplicate application delivery.",
+      "key_points": [
+        "Duplicate detection after ACK loss",
+        "Identify and reassemble fragments",
+        "Less retransmission waste versus overhead"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 136"
+    },
+    {
+      "id": "02_access_protocols-38",
+      "type": "open",
+      "topic": "Design comparison",
+      "prompt": "Choose between fixed TDMA, slotted ALOHA and CSMA/CA for (a) predictable periodic traffic with synchronization available and (b) bursty wireless traffic with hidden terminals. Justify the choices and one limitation each.",
+      "answer": "Fixed TDMA suits predictable traffic but reserves idle slots and needs synchronization. CSMA/CA with suitable protection suits bursty hidden-terminal WLAN traffic but still has contention and control overhead. Slotted ALOHA is simple but needs synchronization and has lower peak efficiency.",
+      "explanation": "The strongest choice depends on traffic, topology and coordination cost rather than one universal protocol ranking.",
+      "key_points": [
+        "TDMA: predictability and reservation cost",
+        "CSMA/CA: hidden-terminal mitigation and overhead",
+        "ALOHA: simplicity with contention limitations"
+      ],
+      "source": "2_Access Protocols-decrypted.pdf, PDF pages 6–11, 65–73, 89–95, 124–136"
+    }
+  ]
+}
