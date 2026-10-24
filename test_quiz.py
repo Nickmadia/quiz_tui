@@ -61,21 +61,18 @@ class QuizTests(unittest.TestCase):
             with self.subTest(bank=bank), self.assertRaises(ValueError):
                 self.load(bank)
 
-    def test_bundled_banks_have_sources_and_open_rubrics(self):
-        root = Path(__file__).resolve().parent
-        paths = sorted((root / "questions").glob("*.json"))
-        self.assertTrue(paths, "Expected bundled question banks")
-        all_ids = set()
-        for path in paths:
-            with self.subTest(path=path):
-                questions = load_bank(path)
-                self.assertTrue(all(q.get("source") for q in questions))
-                for q in questions:
-                    self.assertNotIn(q["id"], all_ids)
-                    all_ids.add(q["id"])
-                    if q["type"] == "open":
-                        self.assertTrue(q.get("key_points"))
-                        self.assertTrue(all(p.strip() for p in q["key_points"]))
+    def test_open_bank_preserves_rubric_and_source(self):
+        bank = {"title": "Open recall", "questions": [{
+            "id": "open-1", "type": "open", "prompt": "Explain a shared medium.",
+            "answer": "Several stations use the same channel.",
+            "explanation": "Access must be coordinated to limit interference.",
+            "key_points": ["Shared capacity", "Need for coordination"],
+            "source": "Example notes, section 1",
+        }]}
+        question = self.load(bank)[0]
+        self.assertEqual(question["type"], "open")
+        self.assertEqual(question["key_points"], bank["questions"][0]["key_points"])
+        self.assertEqual(question["source"], "Example notes, section 1")
 
 
 if __name__ == "__main__":

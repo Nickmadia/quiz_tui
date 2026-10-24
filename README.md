@@ -17,19 +17,22 @@ Requires Python 3 with `curses` on Linux/macOS. Open answers also require
 git clone https://github.com/Nickmadia/quiz_tui.git
 cd quiz_tui
 codex login
-python3 quiz.py questions/iot_03_wlan.json
+python3 quiz.py /path/to/questions.json
 ```
 
 ```sh
 # Choose a model available to your Codex account
-python3 quiz.py questions/iot_03_wlan.json --model MODEL_ID
+python3 quiz.py /path/to/questions.json --model MODEL_ID
 
 # Mix banks, practice 10 questions, hide any multiple-choice options
-python3 quiz.py questions/*.json --count 10 --mode open
+python3 quiz.py /path/to/banks/*.json --count 10 --mode open
 ```
 
-Without `--model`, your Codex configuration selects the model. See `--help` for
-filters, reproducible shuffling and grading timeout options.
+Without `--model`, a picker lists the models reported by your Codex installation.
+Use ↑/↓ and Enter to choose; the first option uses your configured default.
+You can also enter a model ID manually if discovery is unavailable. `--model`
+skips the picker. The chosen model stays visible throughout the quiz.
+See `--help` for filters, reproducible shuffling and grading timeout options.
 
 ## Controls
 
@@ -40,22 +43,26 @@ filters, reproducible shuffling and grading timeout options.
 | Continue after feedback / scroll | Enter / PgUp, PgDn |
 | Quit, including while grading | Ctrl-G |
 
+An animated loading bar and elapsed time remain visible while models load or
+Codex checks an answer. Ctrl-G still quits during either operation.
 Failed assessments offer **Retry** or **Skip**; skipped answers do not lower your
 score. The summary can retry missed or ungraded questions. There is no self-rating.
 
 ## How it works
 
 The Python standard library handles the TUI, bank validation and shuffling.
+The picker queries Codex's model catalog through `app-server` without an AI turn.
 Each open answer is sent with its question and rubric to an ephemeral, read-only
 `codex exec` request. Feedback returns as structured JSON. Grading uses your Codex
 allowance and can make mistakes; responses and scores are not saved by the app.
 Multiple-choice practice and `--validate` work offline.
 
-## Banks and authoring
+## Your question banks
 
-Included: **151 open questions** covering IoT access protocols (38), WLAN (26),
-WPAN (36), and LPWAN/application protocols/routing (51).
-[Coverage and sources](questions/README.md) · [JSON format](docs/bank-format.md)
+Question banks are separate JSON files; none are bundled in this repository.
+Pass a file path (or several paths) when starting the quiz.
+[See the bank format](docs/bank-format.md) to write your own.
+The local `questions/` directory is ignored by Git.
 
 The bundled [question-bank skill](skills/quiz-question-banks/SKILL.md) guides Codex
 through source reading, understanding-focused questions, rubrics and validation.
@@ -69,6 +76,6 @@ cp -R skills/quiz-question-banks "${CODEX_HOME:-$HOME/.codex}/skills/"
 ## Check
 
 ```sh
-python3 quiz.py questions/*.json --validate
+python3 quiz.py /path/to/questions.json --validate
 python3 -m unittest discover -s . -p 'test_*.py'
 ```

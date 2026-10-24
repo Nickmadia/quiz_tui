@@ -6,6 +6,7 @@ import curses
 import json
 import os
 import random
+import selectors
 import shutil
 import signal
 import subprocess
@@ -34,6 +35,134 @@ GRADE_SCHEMA = {
     "additionalProperties": False,
 }
 SCORES = {"correct": 1, "partial": 0.5, "incorrect": 0}
+
+
+def discover_models(timeout=12, on_wait=None):
+    """Read Codex's live model catalog and configured default without an AI turn."""
+    with tempfile.TemporaryDirectory(prefix="quiz-models-") as directory:
+        try:
+            process = subprocess.Popen(
+                ["codex", "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL, cwd=directory, start_new_session=True)
+        except OSError as error:
+            raise GradingError("Cannot load models from Codex.") from error
+        try:
+            def send(message):
+                process.stdin.write((json.dumps(message) + "\n").encode())
+                process.stdin.flush()
+
+            send({"id": 0, "method": "initialize", "params": {
+                "clientInfo": {"name": "quiz_tui", "version": "1.0"}}})
+            started = time.monotonic()
+            buffer = b""
+            models, seen, cursors = [], set(), set()
+            default_model = None
+            request_id = 2
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ)
+                while time.monotonic() - started < timeout:
+                    if on_wait:
+                        on_wait()
+                    if not selector.select(0.05):
+                        continue
+                    chunk = os.read(process.stdout.fileno(), 65536)
+                    if not chunk:
+                        raise GradingError("Codex closed the model list connection.")
+                    buffer += chunk
+                    while b"\n" in buffer:
+                        line, buffer = buffer.split(b"\n", 1)
+                        if not line.strip():
+                            continue
+                        message = json.loads(line)
+                        if not isinstance(message, dict):
+                            raise GradingError("Codex returned an invalid model list.")
+                        response_id = message.get("id")
+                        if response_id not in (0, 1, request_id):
+                            continue
+                        if "error" in message and response_id != 1:
+                            raise GradingError("Codex could not retrieve its model list.")
+                        result = message.get("result", {})
+                        if not isinstance(result, dict):
+                            raise GradingError("Codex returned an invalid model list.")
+                        if response_id == 0:
+                            send({"method": "initialized", "params": {}})
+                            send({"id": 1, "method": "config/read",
+                                  "params": {"includeLayers": False}})
+                        elif response_id == 1:
+                            configured = result.get("config", {}).get("model")
+                            if isinstance(configured, str) and configured.strip():
+                                default_model = configured
+                            send({"id": request_id, "method": "model/list",
+                                  "params": {"limit": 100, "includeHidden": False}})
+                        else:
+                            data = result.get("data")
+                            if not isinstance(data, list):
+                                raise GradingError("Codex returned an invalid model list.")
+                            for entry in data:
+                                if not isinstance(entry, dict) or entry.get("hidden"):
+                                    continue
+                                model = entry.get("model")
+                                if (not isinstance(model, str) or not model.strip()
+                                        or model in seen
+                                        or "text" not in entry.get("inputModalities", ["text"])):
+                                    continue
+                                seen.add(model)
+                                models.append(entry)
+                            cursor = result.get("nextCursor")
+                            if cursor is None:
+                                if default_model is None:
+                                    default_model = next((m["model"] for m in models
+                                                          if m.get("isDefault")), None)
+                                return models, default_model
+                            if not isinstance(cursor, str) or cursor in cursors:
+                                raise GradingError("Codex returned an invalid model list cursor.")
+                            cursors.add(cursor)
+                            request_id += 1
+                            send({"id": request_id, "method": "model/list", "params": {
+                                "limit": 100, "includeHidden": False, "cursor": cursor}})
+            raise GradingError("The model list took too long to load.")
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            raise GradingError("Cannot read the Codex model list.") from error
+        finally:
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            process.wait()
+            for stream in (process.stdin, process.stdout):
+                try:
+                    stream.close()
+                except OSError:
+                    pass  # A closed child pipe must not mask cancellation or the original error.
+
+
+def choose_model(screen):
+    started = time.monotonic()
+    warning = ""
+    try:
+        models, default = discover_models(on_wait=lambda: screen.loading(
+            "Choose grading model", "Loading models from Codex…", started))
+    except GradingError as error:
+        models, default = [], None
+        warning = f"{error} You can use the Codex default or enter a model ID.\n\n"
+    choices = [f"Codex default ({default})" if default else "Codex default"]
+    for entry in models:
+        name = entry.get("displayName") or entry["model"]
+        choices.append(f"{name} ({entry['model']})" if name != entry["model"] else name)
+    choices.append("Enter a model ID…")
+    selection = int(screen.read(
+        "Choose grading model", warning + "Select the model that checks your answers.",
+        "Up/Down select | Enter continue | Ctrl-G quit", choices=choices)) - 1
+    if selection == 0:
+        return default
+    if selection <= len(models):
+        return models[selection - 1]["model"]
+    while True:
+        model = screen.read("Enter model ID", "Type a model ID available to your Codex account.",
+                            "Ctrl-D confirm | Ctrl-G quit", edit=True, edit_label="MODEL ID:")
+        if model.strip() and "\n" not in model and "\r" not in model:
+            return model.strip()
 
 
 def grade_answer(question, response, model=None, timeout=180, on_wait=None):
@@ -167,6 +296,7 @@ def prepare_questions(questions, mode, rng):
 class Screen:
     def __init__(self, window):
         self.window = window
+        self.model_label = None
         try:
             curses.curs_set(0)
         except curses.error:
@@ -208,7 +338,8 @@ class Screen:
         return 0
 
     def read(self, title, content, footer, allowed=None, edit=False, choices=None,
-             below=None, selected_choice=0, correct_choice=None, focus_feedback=False):
+             below=None, selected_choice=0, correct_choice=None, focus_feedback=False,
+             edit_label="YOUR RESPONSE:"):
         """Scrollable page; optional multiline response submitted with Ctrl-D."""
         offset = 0
         response = ""
@@ -228,7 +359,7 @@ class Screen:
                 continue
             body = content
             if edit:
-                body += "\n\nYOUR RESPONSE:\n" + response + "▏"
+                body += "\n\n" + edit_label + "\n" + response + "▏"
             lines = []
             line_attrs = []
             for line in body.split("\n"):
@@ -270,6 +401,8 @@ class Screen:
                 offset = min(offset, maximum)
                 follow_selection = False
             self.put(0, 0, title, self.style("accent", curses.A_BOLD))
+            if self.model_label:
+                self.put(1, 0, self.model_label, self.style("heading"))
             for row, line in enumerate(lines[offset:offset + page_height], 2):
                 line_number = offset + row - 2
                 attr = line_attrs[line_number]
@@ -316,11 +449,19 @@ class Screen:
             elif isinstance(key, str) and key.lower() in (allowed or ""):
                 return key.lower()
 
-    def grading_status(self, title, model):
+    def loading(self, title, message, started):
+        elapsed = max(0, time.monotonic() - started)
+        spinner = "|/-\\"[int(elapsed * 5) % 4]
+        position = int(elapsed * 5) % 30
+        position = position if position < 15 else 29 - position
+        bar = " " * position + "=== " + " " * (15 - position)
         self.window.erase()
         self.put(0, 0, title, self.style("accent", curses.A_BOLD))
-        self.put(2, 0, "Checking your answer…")
-        self.put(4, 0, f"Model: {model or 'Codex default'}")
+        if self.model_label:
+            self.put(1, 0, self.model_label, self.style("heading"))
+        self.put(3, 0, f"{spinner} {message}")
+        self.put(5, 0, f"[{bar}]")
+        self.put(6, 0, f"Elapsed: {elapsed:.0f}s")
         height, _ = self.window.getmaxyx()
         self.put(height - 1, 0, "Ctrl-G quit", self.style("accent", curses.A_REVERSE))
         self.window.refresh()
@@ -334,6 +475,10 @@ class Screen:
                 raise QuitQuiz
         finally:
             self.window.timeout(-1)
+
+    def grading_status(self, title, model, started):
+        self.model_label = f"Model: {model or 'Codex default (ID unavailable)'}"
+        self.loading(title, "Checking your answer…", started)
 
     def put(self, row, col, text, attr=0):
         height, width = self.window.getmaxyx()
@@ -349,6 +494,11 @@ class Screen:
 
 def run(window, questions, mode, rng, model=None, grading_timeout=180):
     screen = Screen(window)
+    has_open = any(mode == "open" or q["type"] == "open" for q in questions)
+    if has_open and model is None:
+        model = choose_model(screen)
+    screen.model_label = (f"Model: {model or 'Codex default (ID unavailable)'}"
+                          if has_open else "Local multiple-choice grading")
     pending = questions
     round_number = 1
     while True:
@@ -369,8 +519,9 @@ def run(window, questions, mode, rng, model=None, grading_timeout=180):
                                        "Enter newline | Ctrl-D submit | Ctrl-G quit", edit=True)
                 while True:
                     try:
+                        started = time.monotonic()
                         grade = grade_answer(q, response, model, grading_timeout,
-                                             lambda: screen.grading_status(title, model))
+                                             lambda: screen.grading_status(title, model, started))
                         verdict = grade["verdict"].upper()
                         score = SCORES[grade["verdict"]]
                         break
@@ -442,7 +593,7 @@ def main():
     parser.add_argument("--count", type=int, help="maximum number of questions")
     parser.add_argument("--seed", type=int, help="reproducible question/choice shuffle")
     parser.add_argument("--validate", action="store_true", help="validate banks without starting TUI")
-    parser.add_argument("--model", help="Codex model for open answers (default: your Codex configuration)")
+    parser.add_argument("--model", help="Codex grading model (skip the model picker)")
     parser.add_argument("--grading-timeout", type=float, default=180,
                         help="seconds to wait per assessment (default: 180)")
     args = parser.parse_args()

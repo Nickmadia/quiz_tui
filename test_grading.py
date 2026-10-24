@@ -20,6 +20,11 @@ GRADE = {"verdict": "correct", "feedback": "You explained reception correctly.",
 
 
 class GradingTests(unittest.TestCase):
+    def setUp(self):
+        picker = patch("quiz.choose_model", return_value=None)
+        picker.start()
+        self.addCleanup(picker.stop)
+
     def invoke(self, result=GRADE, returncode=0, model=None):
         self.command = None
         self.prompt = None
